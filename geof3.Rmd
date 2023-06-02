@@ -1,0 +1,1694 @@
+---
+title: "Geofisica3"
+output: Geofísica3
+---
+
+Preparando ambiente de trabalho
+```{r}
+#Limpando o ambiente de trabalho
+rm(list = ls())
+```
+
+Escolhendo diretório e importando livrarias necessárias
+```{r}
+#escolhendo o diretório de trabalho
+setwd("E:\\Mestrado\\Dados\\Dados_Process\\Geof_3\\GridFinal")
+#conferindo diretório de trabalho
+getwd()
+
+library(rgdal)
+library(raster)
+library(ggplot2)#graphics and maps
+library(ggspatial)#elementos espaciais no ggplot2
+library(tmap)#para maps
+library(sf)# para vetores
+#pacotes de escala de cores
+library(RColorBrewer)
+library(viridis)
+library(cptcity)
+library(sf)
+library(spatstat) #Análises estatísticas espaciais 
+library(maptools)
+library(patchwork)
+library(tidyverse)
+library(terra)
+library(corrplot) # plotar matriz de correlação
+library(factoextra) #PCA
+library(RStoolbox)#raster pca
+library(dplyr)
+library(colorspace)
+library(colorRamps)
+library(kableExtra) # para tabelas
+
+```
+
+importando rasters
+```{r}
+setwd("E:\\Mestrado\\Dados\\Dados_Process\\Geof_3\\GridFinal")
+
+#arquivos projeto 3009
+#Uppm3009=raster("UPPM_3009_regrid.ers")#%>% plot()
+#Thppm3009=raster("Th_blank1k.ers")#%>% plot()
+#Kperc3009=raster("KPERC_3009_regrid.ers")#%>%  plot()
+
+#arquivos projeto 3013
+#Uppm3013=raster("UPPM_3013.ers")#%>%  plot()
+#Thppm3013=raster("Th_3013.ers")#%>%  plot()
+#Kperc3013=raster("KPERC_3013.ers")#%>%  plot
+
+#Razões
+UK_Ratio=raster("UK_positivo.ers")
+UTh_Ratio=raster("UTh_positivo.ers")
+ThK_Ratio=raster("ThK_positivo.ers")
+
+#arquivos knit normais
+UPPM=raster("uppm.ers")#%>%  plot()
+ThPPM=raster("Thppm.ers")#%>%  plot()
+KPERC=raster('Kperc.ers')#%>%  plot()
+CT=raster("CTknit.ers")
+MAG=raster("MAGIGRF.ers")
+
+#Índice máfico < Refazer para conf.
+Indice_Mafico=raster("Indice_Mafico.ers")
+
+#índice laterítico < Refazer para conf.
+Indice_lateritico=raster("Indice_lateritico2.ers")
+
+#Arquivos 1020
+setwd("C:/Users/pc/Desktop/teeste")
+Knit3009e3013=raster("Knit3009_13.ers")
+KCPRM=raster("KCPRM.ers")
+
+KtestCPRM=raster("KCPRMlarge.ers")
+UCPRM=raster("UCPRM.ers")
+ThCPRM=raster("ThCPRM.ers")
+CTCPRM=raster("CTCPRM.ers")
+MAGCPRM=raster("MAGCPRM.ers")
+setwd("E:\\Mestrado\\Dados\\Dados_Process\\Geof_3\\GridFinal")
+
+```
+
+importando limites da área, polígono da geologia e Áreas da Anglo
+```{r}
+setwd("E:\\Mestrado\\Dados\\Dados_Process\\Geof_3\\GridFinal")
+
+#importando limites
+Lbasin=sf::st_read("Larg_basin.shp")
+SVMsmall=sf::st_read("SVM_small.shp")
+AreaSutura=sf::st_read("Area_sobreposta_regrdl2.shp")
+LGeof2=sf::st_read("LGeof2.shp")
+
+#importanto lithology SVM
+lithoSVM=sf::st_read("barroalto250Proj_smallR.shp")
+
+#Importando lithology 
+setwd("E:\\Mestrado\\Dados\\Dados_Process\\Lithology")
+litho=sf::st_read("barroalto250projet.shp")
+
+#importanto lithology Simplificada
+setwd("E:\\Mestrado\\Dados\\Dados_Process\\Lithology\\lito_simp")
+litho_Simp=sf::st_read("L_Lith_simp2.shp") # ta dando errado, TENHO DE ARRUMAR A TOPOLOGIA
+
+# importando Áreas Anglo
+setwd("E:\\Mestrado\\Dados\\Dados_Process\\Areas_anglo")
+AreasAnglo=sf::st_read("Mineral_resources_limit.shp")
+
+#checando classes
+class(Lbasin)
+class(SVMsmall)
+class(AreaSutura)
+class(litho)
+class(litho_Simp)
+
+#visualizando com plot
+plot(Lbasin[1])
+plot(litho[2])
+plot(lithoSVM[2])
+plot(AreasAnglo[2])
+
+#visualizando no mapa com ggplot
+j=ggplot()+
+  geom_sf(data=Lbasin[1],color='black', fill=NA)+
+  geom_sf(data=SVMsmall[1],color='red', fill=NA,)+
+  coord_sf(datum = st_crs(SVMsmall))+
+  theme_bw()+
+  ggspatial::annotation_scale(location='br')+
+  ggspatial::annotation_north_arrow(location='tl',which_north=T, style =north_arrow_fancy_orienteering)
+j
+#visualizando raster com tmap
+tm_shape(Lbasin)+
+  tm_polygons()+
+  tm_shape(Lbasin)+
+  tm_fill(col='white')+
+  tm_borders(col='black')+
+  tm_shape(SVMsmall)+
+  tm_fill(col='white')+
+  tm_borders(col='red')+
+  tm_compass(position = c("left","top"),type = '8star')+
+  tm_grid()+
+  tm_scale_bar()+
+  tm_layout(main.title = 'Áreas Limites')
+
+tm_shape(lithoSVM[2]#,bbox = NP2_mu_2b#tm_shape(lithoSVM[3],bbox = NP2_mu_2b
+         )+
+  tm_polygons()
+  
+  
+#função para juntar dois mapas no tmap ---> tmap_arrange(mapa1,mapa2)
+
+
+
+```
+
+Selecionando polígonos ultramáficos e Area da Anglo
+```{r}
+#Selecionando unidades ultramáficas
+e=lithoSVM[212,]
+plot(e[,46])
+
+f=lithoSVM[80,]
+plot(f[,46])
+
+g=lithoSVM[79,]
+plot(g[,46])
+
+h=lithoSVM[78,]
+plot(h[,46])
+
+#passando para sp 
+e=as(e, "Spatial")
+f=as(f, "Spatial")
+g=as(g, "Spatial")
+h=as(h, "Spatial")
+
+#juntando em um único sp
+UltramaficSVM=raster::bind(e,f,g,h)
+plot(UltramaficSVM[,46])
+
+#Ou poderia ter feito:
+e=lithoSVM[c(212,80,79,78),]
+plot(e[,46])
+
+setwd("E:\\Mestrado\\Dados\\Dados_Process\\Lithology")#exportar
+#writeOGR(obj=Ultramafic, dsn="UltramáficosSVM.shp", layer="Ultramafic", driver="ESRI Shapefile") # this is in equal area projection
+
+#Selecionando 3 áreas da anglo
+UltramAreAnglo=AreasAnglo[c(2:4),]
+plot(UltramAreAnglo[,2])
+
+#Delimimtar agora para a área ultramáfica contida no limite maior
+UltraMafic_L=litho[c(92,93,94,311),]
+plot(UltraMafic_L[,2])
+
+```
+
+mapa tm_shape
+```{r}
+tm_shape(r)+
+  tm_raster(palette = "-RdYlGn",
+  title="Razão U/K")+
+  tm_compass(position = c("right", "top"), size = 2, type = "4star") +
+  tm_scale_bar()+
+  tm_layout(main.title = 'UK teste',
+            main.title.position = 'center',
+            legend.position = c("right", 'bottom'))
+  
+
+```
+
+Aplicando mascaras
+```{r}
+#Masks and overall stats
+mask_basin_U= mask(UPPM,Lbasin) #mascara de U com limite da bacia
+mask_basin_K= mask(KPERC,Lbasin) #mascara de K com limite da bacia
+mask_basin_Th= mask(ThPPM,Lbasin) #mascara de Th com limite da bacia
+mask_basin_ThK=mask(ThK_Ratio,Lbasin)
+mask_basin_UK=mask(UK_Ratio,Lbasin)
+mask_basin_UTH=mask(UTh_Ratio,Lbasin)
+mask_basin_Indice_Mafico=mask(Indice_Mafico,Lbasin)
+mask_basin_Indice_lateritico=mask(Indice_lateritico,Lbasin)
+
+mask_basin=stack(mask_basin_K,mask_basin_U,mask_basin_Th,mask_basin_ThK,mask_basin_UK,mask_basin_UTH,mask_basin_Indice_Mafico,mask_basin_Indice_lateritico)  
+
+#plot(mask_basin_U)
+hist(mask_basin, col='red',xlab="")
+boxplot(mask_basin, main="Elements for masK_basin",col='red')
+
+#MASK GEOF2
+mask_LGeof2_U= mask(UPPM,LGeof2) #mascara de U com limite da bacia
+mask_LGeof2_K= mask(KPERC,LGeof2) #mascara de K com limite da bacia
+mask_LGeof2_Th= mask(ThPPM,LGeof2) #mascara de Th com limite da bacia
+mask_LGeof2_ThK=mask(ThK_Ratio,LGeof2)
+mask_LGeof2_UK=mask(UK_Ratio,LGeof2)
+mask_LGeof2_UTH=mask(UTh_Ratio,LGeof2)
+mask_LGeof2_Indice_Mafico=mask(Indice_Mafico,LGeof2)
+mask_LGeof2_Indice_lateritico=mask(Indice_lateritico,LGeof2)
+
+mask_LGeof2=stack(mask_LGeof2_K,mask_LGeof2_U,mask_LGeof2_Th,mask_LGeof2_ThK,mask_LGeof2_UK,mask_LGeof2_UTH,mask_LGeof2_Indice_Mafico,mask_LGeof2_Indice_lateritico)  
+
+hist(mask_LGeof2, col='red',xlab="")
+boxplot(mask_LGeof2, main="Elements for masK_basin",col='red')
+#MAK svmSMALL
+
+mask_SVMsmall_U=mask(UPPM,SVMsmall) #máscara de U com limite SVMsmal
+mask_SVMsmall_k=mask(KPERC,SVMsmall) #máscara de K com limite SVMsmal
+mask_SVMsmall_Th=mask(ThPPM,SVMsmall) #máscara de Th com limite SVMsmal
+mask_SVMsmall_ThK=mask(ThK_Ratio,SVMsmall)
+mask_SVMsmall_UK=mask(UK_Ratio,SVMsmall)
+mask_SVMsmall_UTH=mask(UTh_Ratio,SVMsmall)
+mask_SVMsmall_Mafico=mask(Indice_Mafico,SVMsmall)
+mask_SVMsmall_lateritico=mask(Indice_lateritico,SVMsmall)
+mask_SVMsmall=stack(mask_SVMsmall_k,mask_SVMsmall_U,mask_SVMsmall_Th,mask_SVMsmall_ThK,mask_SVMsmall_UK,mask_SVMsmall_UTH,mask_SVMsmall_Mafico,mask_SVMsmall_lateritico)
+
+#plot(mask_SVMsmall_U)
+hist(mask_SVMsmall, col='yellow',xlab="")
+boxplot(mask_SVMsmall, main="Elements for masK_SVMsmall", col= 'yellow')
+
+###mascara ultramáficas SVM
+mask_UltramaficSVM_U= mask(UPPM,UltramaficSVM) #Máscara de U para os polígonos ultramáficos sem cut do limite de área
+mask_UltramaficSVM_k= mask(KPERC,UltramaficSVM) #Máscara de K para os polígonos ultramáficos sem cut do limite de área
+mask_UltramaficSVM_Th= mask(ThPPM,UltramaficSVM) #Máscara de Th para os polígonos ultramáficos sem cut do limite de área
+mask_UltramaficSVM_ThK=mask(ThK_Ratio,UltramaficSVM)
+mask_UltramaficSVM_UK=mask(UK_Ratio,UltramaficSVM)
+mask_UltramaficSVM_UTh=mask(UTh_Ratio,UltramaficSVM)
+mask_UltramaficSVM_Mafico=mask(Indice_Mafico,UltramaficSVM)
+mask_UltramaficSVM_lateritico=mask(Indice_lateritico,UltramaficSVM)
+mask_UltramaficSVM=stack(mask_UltramaficSVM_k,mask_UltramaficSVM_U,mask_UltramaficSVM_Th,mask_UltramaficSVM_ThK,mask_UltramaficSVM_UK,mask_UltramaficSVM_UTh,mask_UltramaficSVM_Mafico,mask_UltramaficSVM_lateritico) #juntando em um raster
+
+
+
+#plot(mask_SVMsmall_U)
+hist(mask_SVMsmall, col='yellow',xlab="")
+boxplot(mask_SVMsmall, main="Elements for masK_SVMsmall", col= 'yellow')
+
+###mascara Anglo
+mask_UltramaficAnglo_U= mask(UPPM,UltramAreAnglo) #Máscara de U para os polígonos ultramáficos sem cut do limite de área
+mask_UltramaficAnglo_k= mask(KPERC,UltramAreAnglo) #Máscara de K para os polígonos ultramáficos sem cut do limite de área
+mask_UltramaficAnglo_Th= mask(ThPPM,UltramAreAnglo) #Máscara de Th para os polígonos ultramáficos sem cut do limite de área
+mask_UltramaficAnglo_ThK=mask(ThK_Ratio,UltramAreAnglo)
+mask_UltramaficAnglo_UK=mask(UK_Ratio,UltramAreAnglo)
+mask_UltramaficAnglo_UTh=mask(UTh_Ratio,UltramAreAnglo)
+mask_UltramaficAnglo_Mafico=mask(Indice_Mafico,UltramAreAnglo)
+mask_UltramaficAnglo_lateritico=mask(Indice_lateritico,UltramAreAnglo)
+mask_UltramaficAnglo=stack(mask_UltramaficAnglo_k,mask_UltramaficAnglo_U,mask_UltramaficAnglo_Th,mask_UltramaficAnglo_ThK,mask_UltramaficAnglo_UK,mask_UltramaficAnglo_UTh,mask_UltramaficAnglo_Mafico,mask_UltramaficAnglo_lateritico) #juntando em um raster
+
+#plot(mask_UltramaficAnglo_k)
+hist(mask_UltramaficAnglo, col='blue',xlab="")
+boxplot(mask_UltramaficAnglo,main="Elements for ultramáfic", col= 'blue')
+
+
+###mascara ultramáficas LARGE
+mask_Ultramafic_U= mask(UPPM,UltraMafic_L) #Máscara de U para os polígonos ultramáficos sem cut do limite de área
+mask_Ultramafic_k= mask(KPERC,UltraMafic_L) #Máscara de K para os polígonos ultramáficos sem cut do limite de área
+mask_Ultramafic_Th= mask(ThPPM,UltraMafic_L) #Máscara de Th para os polígonos ultramáficos sem cut do limite de área
+mask_Ultramafic_ThK=mask(ThK_Ratio,UltraMafic_L)
+mask_Ultramafic_UK=mask(UK_Ratio,UltraMafic_L)
+mask_Ultramafic_UTh=mask(UTh_Ratio,UltraMafic_L)
+mask_Ultramafic_Mafico=mask(Indice_Mafico,UltraMafic_L)
+mask_Ultramafic_lateritico=mask(Indice_lateritico,UltraMafic_L)
+mask_Ultramafic=stack(mask_Ultramafic_k,mask_Ultramafic_U,mask_Ultramafic_Th,mask_Ultramafic_ThK,mask_Ultramafic_UK,mask_Ultramafic_UTh,mask_Ultramafic_Mafico,mask_Ultramafic_lateritico) #juntando em um raster
+
+```
+#analisando as mascaras (boxplot e hist)
+```{r}
+
+a=stack(mask_UltramaficAnglo_U,mask_UltramaficSVM_U,mask_SVMsmall_U,mask_basin_U)
+boxplot(a,main="Urânio ",names=c("Anglo", "UltramaficSVM", "SVMsmall", "Basin"), col="blue",ylab="ppm")
+hist(a,col="blue")
+
+a=stack(mask_UltramaficAnglo_k,mask_UltramaficSVM_k,mask_SVMsmall_k,mask_basin_K)
+boxplot(a,main="Potássio",names=c("Anglo", "UltramaficSVM", "SVMsmall", "Basin"), col="red",ylab="%")
+hist(a,col="red")
+
+a=stack(mask_UltramaficAnglo_Th,mask_UltramaficSVM_Th,mask_SVMsmall_Th,mask_basin_Th)
+boxplot(a,main="Tório",names=c("Anglo", "UltramaficSVM", "SVMsmall", "Basin"), col="green",ylab="ppm")
+hist(a,col="green")
+
+a=stack(mask_UltramaficAnglo_ThK,mask_UltramaficSVM_ThK,mask_SVMsmall_ThK,mask_basin_ThK)
+boxplot(a,main="Th/K ",names=c("Anglo", "UltramaficSVM", "SVMsmall", "Basin"), col="yellow")
+hist(a,col="yellow")
+
+a=stack(mask_UltramaficAnglo_UK,mask_Ultramafic_UK,mask_SVMsmall_UK,mask_basin_UK)
+boxplot(a,main="U/k",names=c("Anglo", "UltramaficSVM", "SVMsmall", "Basin"), col="pink")
+hist(a,col="pink")
+
+a=stack(mask_UltramaficAnglo_UTh,mask_UltramaficSVM_UTh,mask_SVMsmall_UTH,mask_basin_UTH)
+boxplot(a,main="U/Th",names=c("Anglo", "UltramaficSVM", "SVMsmall", "Basin"), col="orange")
+hist(a,col="orange")
+
+a=stack(mask_UltramaficAnglo_lateritico,mask_UltramaficSVM_lateritico,mask_SVMsmall_lateritico,mask_basin_Indice_lateritico)
+boxplot(a,main="Índice Latrítico",names=c("Anglo", "UltramaficSVM", "SVMsmall", "Basin"), col="brown")
+hist(a,col="brown")
+
+a=stack(mask_UltramaficAnglo_Mafico,mask_UltramaficSVM_Mafico,mask_SVMsmall_Mafico,mask_basin_Indice_Mafico)
+boxplot(a,main="IM",names=c("Anglo", "UltramaficSVM", "SVMsmall", "Basin"), col="purple")
+hist(a,col="purple")
+
+```
+Analisando para botar na qualificação e correlação
+```{r}
+a=stack(mask_SVMsmall_U,mask_LGeof2$Uppm)
+boxplot(a,main="Urânio ",names=c("SVMsmall", "Área maior"), col="blue",Xlab="ppm", horizontal=TRUE)
+#hist(a,col="blue")
+
+a=stack(mask_SVMsmall_k,mask_LGeof2$Kperc)
+boxplot(a,main="Potássio",names=c("SVMsmall", "Área maior"), col="red",Xlab="%", horizontal=TRUE)
+#hist(a,col="red")
+
+a=stack(mask_SVMsmall_Th,mask_LGeof2$Thppm)
+boxplot(a,main="Tório",names=c("SVMsmall", "Área maior"), col="green",Xlab="ppm", horizontal=TRUE)
+#hist(a,col="green")
+
+a=stack(mask_SVMsmall_ThK,mask_LGeof2$ThK_positivo)
+boxplot(a,main="Th/K ",names=c("SVMsmall", "Área maior"), col="yellow", horizontal=TRUE)
+#hist(a,col="yellow")
+
+a=stack(mask_SVMsmall_UK,mask_LGeof2$UK_positivo)
+boxplot(a,main="U/k",names=c("SVMsmall", "Área maior"), col="pink", horizontal=TRUE)
+#hist(a,col="pink")
+
+a=stack(mask_SVMsmall_UTH,mask_LGeof2$UTh_positivo)
+boxplot(a,main="U/Th",names=c("SVMsmall", "Área maior"), col="orange", horizontal=TRUE)
+#hist(a,col="orange")
+
+a=stack(mask_SVMsmall_lateritico,mask_LGeof2$Indice_lateritico2)
+boxplot(a,main="Índice Latrítico",names=c("SVMsmall", "Área maior"), col="brown", horizontal=TRUE)
+#hist(a,col="brown")
+
+a=stack(mask_SVMsmall_Mafico,mask_LGeof2$Indice_Mafico)
+boxplot(a,main="IM",names=c("SVMsmall", "Área maior"), col="purple", horizontal=TRUE)
+#hist(a,col="purple")
+
+pt_mask_SVMsmall=rasterToPoints(mask_SVMsmall)
+pt_mask_SVMsmall=pt_mask_SVMsmall[,c(3:10)]
+
+cor(pt_mask_SVMsmall,use="complete.obs")
+
+corrplot(cor(pt_mask_SVMsmall,use="complete.obs",method = "spearman"),method = "color", #spearman
+         type = "upper", #mostra apenas a porção superior
+         addCoef.col = "black", # acrescenta os dados numéricos
+         tl.col="black", # cor das letras é preta
+         tl.srt = 45, #rotação das variáveis
+         order="hclust")
+testCor=cor.mtest(pt_mask_SVMsmall,method = "spearman", conf.level=0.95)
+corrplot(Spearcor,p.mat=testCor$p)
+b=rcorr(as.matrix(pt_mask_SVMsmall))
+b
+```
+MAis coisa pra qualificação
+```{r}
+a=mask_SVMsmall%>%values%>%summary
+ a %>% 
+    kbl(caption = "Geophysical Stats") %>% 
+    kable_classic_2(full_width = F, html_font = "Cambria")
+```
+Correlação
+```{r}
+# Ainda tenho de testar a normalidade dessas coisas
+
+#Na área da Anglo - apenas 3 poligonos 
+pt_mask_ultramaficAnglo=rasterToPoints(mask_UltramaficAnglo) # transformando em pontos
+pt_mask_ultramaficAnglo=pt_mask_ultramaficAnglo[,c(3:10)] # tirando colulas de lat e long
+cor(pt_mask_ultramaficAnglo,use="complete.obs")
+corrplot(cor(pt_mask_ultramaficAnglo,use="complete.obs"),method = "color", #pearson
+         type = "upper", #mostra apenas a porção superior
+         addCoef.col = "black", # acrescenta os dados numéricos
+         tl.col="black", # cor das letras é preta
+         tl.srt = 45, #rotação das variáveis
+        order = "hclust" # ordena a correlação do maior pro menor
+         )
+
+
+#Na área ultramáfica 
+pt_mask_ultramafic=rasterToPoints(mask_Ultramafic) # transformando em pontos
+pt_mask_ultramafic=pt_mask_ultramafic[,c(3:10)] # tirando colulas de lat e long
+
+cor(pt_mask_ultramafic,use="complete.obs")
+
+corrplot(cor(pt_mask_ultramafic,use="complete.obs"),method = "color", #pearson
+         type = "upper", #mostra apenas a porção superior
+         addCoef.col = "black", # acrescenta os dados numéricos
+         tl.col="black", # cor das letras é preta
+         tl.srt = 45, #rotação das variáveis
+         order = "hclust" # ordena a correlação do maior pro menor
+)
+#cor.mtest(cor(pt_mask_ultramafic)) # P-valor :'( # deu errado apos add as ultimas duas colunas - indice mafico e laterítico
+
+# Na área bacia
+pt_mask_basin=rasterToPoints(mask_basin)
+pt_mask_basin=pt_mask_basin[,c(3:10)]
+
+cor(pt_mask_basin,use="complete.obs")
+
+corrplot(cor(pt_mask_basin,use="complete.obs"),method = "color", #pearson
+         type = "upper", #mostra apenas a porção superior
+         addCoef.col = "black", # acrescenta os dados numéricos
+         tl.col="black", # cor das letras é preta
+         tl.srt = 45 #rotação das variáveis
+         )
+#cor.mtest(cor(pt_mask_basin,use="complete.obs"))
+
+# na área small
+pt_mask_SVMsmall=rasterToPoints(mask_SVMsmall)
+pt_mask_SVMsmall=pt_mask_SVMsmall[,c(3:10)]
+
+cor(pt_mask_SVMsmall,use="complete.obs")
+
+corrplot(cor(pt_mask_SVMsmall,use="complete.obs"),method = "color", #pearson
+         type = "upper", #mostra apenas a porção superior
+         addCoef.col = "black", # acrescenta os dados numéricos
+         tl.col="black", # cor das letras é preta
+         tl.srt = 45, #rotação das variáveis
+         order="hclust")
+cor.mtest(cor(pt_mask_SVMsmall))
+```
+
+Cluster hierarquico
+```{r}
+PearsoncorClust_ultramafic=hclust(dist(cor(pt_mask_ultramafic,use="complete.obs")))
+plot(PearsoncorClust_ultramafic)
+rect.hclust(PearsoncorClust_ultramafic,k=2,border=2:5)
+
+PearsoncorClust_Basin=hclust(dist(cor(pt_mask_basin,use="complete.obs")))
+plot(PearsoncorClust_Basin)
+rect.hclust(PearsoncorClust_Basin,k=2,border=2:5)
+
+PearsoncorClust_SVM=hclust(dist(cor(pt_mask_SVMsmall,use="complete.obs")))
+plot(PearsoncorClust_SVM)
+rect.hclust(PearsoncorClust_SVM,k=2,border=2:5)
+```
+
+##Normalizando dados e retirando Na
+```{r}
+# Normalizando ultramáficos
+pt_mask_ultramafic_norm=pt_mask_ultramafic
+a=(pt_mask_ultramafic_norm[,1]  - min(pt_mask_ultramafic_norm[,1], na.rm=T))/(max(pt_mask_ultramafic_norm[,1], na.rm=T)-min(pt_mask_ultramafic_norm[,1], na.rm=T))
+pt_mask_ultramafic_norm[,1]=a
+pt_mask_ultramafic_norm_semNa=na.omit(pt_mask_ultramafic_norm)
+
+#Para a área da bacia
+pt_mask_basin_semNA_Norm=pt_mask_basin_semNA
+a=(pt_mask_basin_semNA_Norm[,1]  - min(pt_mask_basin_semNA_Norm[,1], na.rm=T))/(max(pt_mask_basin_semNA_Norm[,1], na.rm=T)-min(pt_mask_basin_semNA_Norm[,1], na.rm=T))
+pt_mask_basin_semNA_Norm[,1]=a
+
+#Para a área SVM
+pt_mask_SVMsmall_norm=pt_mask_SVMsmall
+a=(pt_mask_SVMsmall_norm[,1]  - min(pt_mask_SVMsmall_norm[,1], na.rm=T))/(max(pt_mask_SVMsmall_norm[,1], na.rm=T)-min(pt_mask_SVMsmall_norm[,1], na.rm=T))
+pt_mask_SVMsmall_norm[,1]=a
+
+#Para Área da anglo
+pt_mask_ultramaficAnglo_norm=pt_mask_ultramaficAnglo
+a=(pt_mask_ultramaficAnglo_norm[,1]  - min(pt_mask_ultramaficAnglo_norm[,1], na.rm=T))/(max(pt_mask_ultramaficAnglo_norm[,1], na.rm=T)-min(pt_mask_ultramaficAnglo_norm[,1], na.rm=T))
+pt_mask_ultramaficAnglo_norm[,1]=a
+```
+PCA# NORM
+```{r}
+###`Para ultramáfica
+prcomp(pt_mask_ultramafic_norm_semNa) 
+
+fviz_eig(prcomp(pt_mask_ultramafic_norm_semNa), title = "pt_mask_ultramafic_norm_semNa")
+fviz_pca_ind(prcomp(pt_mask_ultramafic_norm_semNa), title = "pt_mask_ultramaficNorm_semNA")
+fviz_pca_var(prcomp(pt_mask_ultramafic_norm_semNa),col.var = 'contrib', gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07"), title = "pt_mask_ultramaficNorm_semNA")
+
+#dar uma olhada na PC6 ^
+
+##Ultramáfica semm IL
+pt_mask_ultramafic_norm_semNaeIl=pt_mask_ultramafic_norm_semNa[,c(1:7)]
+prcomp(pt_mask_ultramafic_norm_semNaeIl) 
+
+fviz_eig(prcomp(pt_mask_ultramafic_norm_semNaeIl), title = "pt_mask_ultramafic_norm_semNaeIl")
+fviz_pca_ind(prcomp(pt_mask_ultramafic_norm_semNaeIl), title = "pt_mask_ultramafic_norm_semNaeIl")
+fviz_pca_var(prcomp(pt_mask_ultramafic_norm_semNaeIl),col.var = 'contrib', gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07"), title = "pt_mask_ultramafic_norm_semNaeIl")
+
+
+##PAra bacia
+prcomp(pt_mask_basin_semNA_Norm) 
+
+fviz_eig(prcomp(pt_mask_basin_semNA_Norm), title = "pt_mask_basin_semNA_Norm")
+fviz_pca_ind(prcomp(pt_mask_basin_semNA_Norm), title = "pt_mask_basin_semNA_Norm")
+fviz_pca_var(prcomp(pt_mask_basin_semNA_Norm),col.var = 'contrib', gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07"), title = "pt_mask_basin_semNA_Norm")
+
+##Para SVM
+prcomp(pt_mask_SVMsmall_norm) 
+
+fviz_eig(prcomp(pt_mask_SVMsmall_norm), main='Scree Plot - Dados Normalizados')
+fviz_pca_ind(a,col.ind = 'contrib', title = "Dados Normalizados",geom='point', gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07"))
+fviz_pca_var(prcomp(pt_mask_SVMsmall_norm),col.var = 'contrib', gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07"), title = "pt_mask_SVMsmall_norm")
+
+a=prcomp(pt_mask_SVMsmall_norm)
+b=a$rotation
+  b %>% 
+    kbl(caption = "PC - normalized geophysical data") %>% 
+    kable_classic_2(full_width = F, html_font = "Cambria")
+  
+##Para SVMsem IL
+pt_mask_SVMsmall_norm_semNAIL=pt_mask_SVMsmall_norm[,c(1:7)]
+prcomp(pt_mask_SVMsmall_norm_semNAIL) 
+
+fviz_eig(prcomp(pt_mask_SVMsmall_norm_semNAIL), title = "pt_mask_SVMsmall_norm_semNAIL")
+fviz_pca_ind(prcomp(pt_mask_SVMsmall_norm_semNAIL), title = "pt_mask_SVMsmall_norm_semNAIL")
+fviz_pca_var(prcomp(pt_mask_SVMsmall_norm_semNAIL),col.var = 'contrib', gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07"), title = "pt_mask_SVMsmall_norm_semNAIL")
+
+##Para Only 3 elementos
+pt_ThKU_norm_semNAIL=pt_mask_SVMsmall_norm[,c(1:3)]
+prcomp(pt_ThKU_norm_semNAIL) 
+
+fviz_eig(prcomp(pt_ThKU_norm_semNAIL), title = "ThKU")
+fviz_pca_ind(prcomp(pt_ThKU_norm_semNAIL), title = "ThKU")
+fviz_pca_var(prcomp(pt_ThKU_norm_semNAIL),col.var = 'contrib', gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07"), title = "ThKU")
+
+#Para as 3 áreas da Anglo_norm
+prcomp(pt_mask_ultramaficAnglo_norm) 
+
+fviz_eig(prcomp(pt_mask_ultramaficAnglo_norm), title = "3 áreas da Anglo_norm")
+fviz_pca_ind(prcomp(pt_mask_ultramaficAnglo_norm), title = "3 áreas da Anglo_norm")
+fviz_pca_var(prcomp(pt_mask_ultramaficAnglo_norm),col.var = 'contrib', gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07"), title = "3 áreas da Anglo_norm")
+```
+delchunck
+```{r}
+##Para SVMsem IL
+pt_mask_SVMsmall_norm_semNAIL=pt_mask_SVMsmall_norm[,c(1:7)]
+prcomp(pt_mask_SVMsmall_norm_semNAIL) 
+
+fviz_eig(prcomp(pt_mask_SVMsmall_norm_semNAIL), title = "pt_mask_SVMsmall_norm_semNAIL")
+fviz_pca_ind(prcomp(pt_mask_SVMsmall_norm_semNAIL), title = "pt_mask_SVMsmall_norm_semNAIL")
+fviz_pca_var(prcomp(pt_mask_SVMsmall_norm_semNAIL),col.var = 'contrib', gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07"), title = "pt_mask_SVMsmall_norm_semNAIL")
+
+##Para Only 3 elementos
+pt_ThKU_norm_semNAIL=pt_mask_SVMsmall_norm[,c(1:3)]
+prcomp(pt_ThKU_norm_semNAIL) 
+
+fviz_eig(prcomp(pt_ThKU_norm_semNAIL), title = "ThKU")
+fviz_pca_ind(prcomp(pt_ThKU_norm_semNAIL), title = "ThKU")
+fviz_pca_var(prcomp(pt_ThKU_norm_semNAIL),col.var = 'contrib', gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07"), title = "ThKU")
+```
+
+PCA
+```{r}
+#Para a área ultramáfica
+pt_mask_ultramafic_semNA=na.omit(pt_mask_ultramafic)
+prcomp(pt_mask_ultramafic_semNA) 
+
+fviz_eig(prcomp(pt_mask_ultramafic_semNA))
+fviz_pca_ind(prcomp(pt_mask_ultramafic_semNA))
+fviz_pca_var(prcomp(pt_mask_ultramafic_semNA),col.var = 'contrib', gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07"), title = "pt_mask_ultramafic_semNA")
+
+#Para a área ultramáfica - Sem o índice laterítico
+pt_mask_ultramafic_semNAeIL=pt_mask_ultramafic_semNA[,c(1:7)]
+prcomp(pt_mask_ultramafic_semNAeIL) 
+
+fviz_eig(prcomp(pt_mask_ultramafic_semNAeIL))
+fviz_pca_ind(prcomp(pt_mask_ultramafic_semNAeIL))
+fviz_pca_var(prcomp(pt_mask_ultramafic_semNAeIL),col.var = 'contrib', gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07"),  title = "pt_mask_ultramafic_semNAeIL")
+
+#Para a área da Bacia 
+#coo há valores NA vou ter de eliminalos
+sum(is.na(pt_mask_basin))
+pt_mask_basin_semNA=na.omit(pt_mask_basin) # essa função elimina as linhas que contem NA
+
+sum(is.na(pt_mask_basin_semNA))
+
+prcomp(pt_mask_basin_semNA)
+
+fviz_eig(prcomp(pt_mask_basin_semNA))
+#fviz_pca_ind(prcomp(pt_mask_basin_semNA)) # ta demorando muito essa por isso deixei como comentário
+fviz_pca_var(prcomp(pt_mask_basin_semNA),col.var = 'contrib', gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07"), title = "pt_mask_basin_semNA")
+
+# para a área SVM small
+prcomp(pt_mask_SVMsmall)
+
+fviz_eig(prcomp(pt_mask_SVMsmall))
+#fviz_pca_ind(prcomp(pt_mask_SVMsmall))
+fviz_pca_var(prcomp(pt_mask_SVMsmall),col.var = 'contrib', gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07"), title = "pt_mask_SVMsmall")
+
+# para a área SVM small sem o IL
+pt_mask_SVMsmall_semNAeIL=pt_mask_SVMsmall[,c(1:7)]
+prcomp(pt_mask_SVMsmall_semNAeIL)
+
+fviz_eig(prcomp(pt_mask_SVMsmall_semNAeIL))
+fviz_pca_ind(prcomp(pt_mask_SVMsmall_semNAeIL))
+fviz_pca_var(prcomp(pt_mask_SVMsmall_semNAeIL),col.var = 'contrib', gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07"), title = "pt_mask_SVMsmall_semNAeIL")
+
+
+
+```
+
+Projetando e Mudando a resolução do raster
+```{r}
+setwd("C:/Users/pc/Desktop/teeste")
+
+#KtestCPRMproj=projectRaster(KtestCPRM, crs = "+proj=utm +zone=22 +south +datum=WGS84 +units=m +no_defs", method = "ngb") # Reprojetando de GCS para UTM22S
+
+#indicando a resolução conforme o contorno, nesse caso coloquei a resolução para o contorno de 125m que é a do dado mais detalhado
+#a=raster(AS_K_st,res=125)
+
+#realizar a reamostragem
+#KtestCPRMReamostrado=resample(KtestCPRMproj,a, method= "bilinear") #creio que o método bilinear seja o mais indicado para variáveis contínuas
+
+#Knit3009e3013Reamostrado=resample(Knit3009e3013,a,method= "bilinear")
+
+
+############Agora para o K folha 22Z
+setwd("C:/Users/pc/Desktop/teeste")
+
+KCPRMproj=projectRaster(KCPRM, crs = "+proj=utm +zone=22 +south +datum=WGS84 +units=m +no_defs", method = "ngb") # Reprojetando de GCS para UTM22S
+#conferindo resoluções
+res(KCPRMproj)
+res(Knit3009e3013)
+
+#realizar a reamostragem
+KCPRMReamostrado=resample(KCPRMproj,KPERC, method= "bilinear") #creio que o método bilinear seja o mais indicado para variáveis contínuas. Usei o K como parâmetr
+
+############Agora para o Th folha 22Z
+
+ThCPRMproj=projectRaster(ThCPRM, crs = "+proj=utm +zone=22 +south +datum=WGS84 +units=m +no_defs", method = "ngb") # Reprojetando de GCS para UTM22S
+
+res(ThCPRMproj)
+res(ThPPM)
+
+#realizar a reamostragem
+ThCPRMReamostrado=resample(ThCPRMproj,ThPPM, method= "bilinear") #creio que o método bilinear seja o mais indicado para variáveis contínuas. Usei o Thppm como parâmetro
+
+
+############Agora para o u folha 22Z
+UCPRMproj=projectRaster(UCPRM, crs = "+proj=utm +zone=22 +south +datum=WGS84 +units=m +no_defs", method = "ngb") # Reprojetando de GCS para UTM22S
+
+
+#conferindo resoluções
+res(UCPRMproj)
+res(UPPM)
+
+#realizar a reamostragem
+UCPRMeamostrado=resample(UCPRMproj,UPPM, method= "bilinear") #creio que o método bilinear seja o mais indicado para variáveis contínuas. Usei o Thppm como parâmetro
+
+
+###Agora para a CT
+CTCPRMproj=projectRaster(CTCPRM, crs = "+proj=utm +zone=22 +south +datum=WGS84 +units=m +no_defs", method = "ngb") # Reprojetando de GCS para UTM22S
+
+#conferindo resoluções
+res(CTCPRMproj)
+res(CT)
+
+#realizar a reamostragem
+CTCPRMeamostrado=resample(CTCPRMproj,CT, method= "bilinear") #creio que o método bilinear seja o mais indicado para variáveis contínuas. Usei o Thppm como parâmetro
+
+#MAG
+MAGCPRMproj=projectRaster(MAGCPRM, crs = "+proj=utm +zone=22 +south +datum=WGS84 +units=m +no_defs", method = "ngb") # Reprojetando de GCS para UTM22S
+
+#conferindo resoluções
+res(MAGCPRMproj)
+res(MAG)
+
+#realizar a reamostragem
+MAGCPRMReamostrado=resample(MAGCPRMproj,MAG, method= "bilinear") #creio que o método bilinear seja o mais indicado para variáveis contínuas
+
+```
+
+Obtendo as bordas e Area de sutura e criando um subset do arquivo projetado
+```{r}
+###Agora bordas K folha SD22
+
+spat_KCPRM=rast(KCPRMReamostrado > -Inf) #tirando valores Na e infinitos
+Limite_KCPRM=as.polygons(spat_KCPRM)
+Limite_KCPRM_sf=st_as_sf(Limite_KCPRM)# convertendo para sf
+KCPRMReamostrado=crop(KCPRMReamostrado,Limite_KCPRM_sf) # criando subset
+
+spat_KPERC=rast(KPERC> -Inf) #tirando valores Na e infinitos
+Limite_Knit3009e3013=as.polygons(spat_KPERC)
+
+AS_K_small=terra::intersect(Limite_KCPRM,Limite_Knit3009e3013) # área de intersecção de cada projeto
+AS_K_small_st=sf::st_as_sf(AS_K_small) # convertendo para sf
+
+plot(Limite_KCPRM,col='red',main="AS K")
+plot(Limite_Knit3009e3013, col='blue', add=T,alpha=0.4)
+plot(AS_K_small_st, add=T,lwd=2, lty='dashed')
+legend(749000,8297000,legend =c( "3013_03","1020"), fill=c("blue","red"))
+
+# fazendo pro Th 
+
+spat_ThCPRM=rast(ThCPRMReamostrado > -Inf) #tirando valores Na e infinitos
+Limite_ThCPRM=as.polygons(spat_ThCPRM)
+Limite_ThCPRM_sf=st_as_sf(Limite_ThCPRM)# convertendo para sf
+ThCPRMReamostrado=crop(ThCPRMReamostrado,Limite_ThCPRM_sf) # criando subset
+
+
+spat_ThPPM=rast(ThPPM > -Inf) #tirando valores Na e infinitos
+Limite_ThPPM=as.polygons(spat_ThPPM)
+
+AS_Th_small=terra::intersect(Limite_ThPPM,Limite_ThCPRM) # área de intersecção de cada projeto
+AS_Th_small_st=sf::st_as_sf(AS_Th_small) # convertendo para sf
+
+plot(Limite_ThCPRM,col='red',main="AS Th")
+plot(Limite_ThPPM, col='blue', add=T,alpha=0.4)
+plot(AS_Th_small_st[,1], add=T,lwd=2, lty='dashed')
+legend(749000,8297000,legend =c( "3013_03","1020"), fill=c("blue","red"))
+
+#Para Urânio
+spat_UCPRM=rast(UCPRMeamostrado > -Inf) #tirando valores Na e infinitos
+Limite_UCPRM=as.polygons(spat_UCPRM)
+Limite_UCPRM_sf=st_as_sf(Limite_UCPRM)# convertendo para sf
+UCPRMeamostrado=crop(UCPRMeamostrado,Limite_UCPRM_sf) # criando subset
+
+spat_UPPM=rast(UPPM > -Inf) #tirando valores Na e infinitos
+Limite_UPPM=as.polygons(spat_UPPM)
+
+AS_U_small=terra::intersect(Limite_UCPRM,Limite_UPPM) # área de intersecção de cada projeto
+AS_U_small_st=sf::st_as_sf(AS_U_small) # convertendo para sf
+
+plot(Limite_UCPRM,col='red',main="AS U")
+plot(Limite_UPPM, col='blue', add=T,alpha=0.4)
+plot(AS_U_small_st[,1], add=T,lwd=2, lty='dashed')
+legend(749000,8297000,legend =c( "3013_03","1020"), fill=c("blue","red"))
+
+#Para CT
+spat_CTCPRM=rast(CTCPRMeamostrado > -Inf) #tirando valores Na e infinitos
+Limite_CTCPRM=as.polygons(spat_CTCPRM)
+Limite_CTCPRM_sf=st_as_sf(Limite_CTCPRM)# convertendo para sf
+CTCPRMeamostrado=crop(CTCPRMeamostrado,Limite_CTCPRM_sf) # criando subset
+
+
+spat_CT=rast(CT > -Inf) #tirando valores Na e infinitos
+Limite_CT=as.polygons(spat_CT)
+
+AS_CT_small=terra::intersect(Limite_CTCPRM,Limite_CT) # área de intersecção de cada projeto
+AS_CT_small_st=sf::st_as_sf(AS_CT_small) # convertendo para sf
+
+plot(Limite_CTCPRM,col='red',main="AS CT")
+plot(Limite_CT, col='blue', add=T,alpha=0.4)
+plot(AS_CT_small_st[,1], add=T,lwd=2, lty='dashed')
+legend(749000,8297000,legend =c( "3013_03","1020"), fill=c("blue","red"))
+
+#Mag
+spat_MAGCPRM=rast(MAGCPRMReamostrado > -Inf) #tirando valores Na e infinitos
+Limite_MAGCPRM=as.polygons(spat_MAGCPRM)
+Limite_MAGCPRM_sf=st_as_sf(Limite_MAGCPRM)# convertendo para sf
+MAGCPRMReamostrado=crop(MAGCPRMReamostrado,Limite_MAGCPRM_sf) # criando subset
+
+
+spat_MAG=rast(MAG > -Inf) #tirando valores Na e infinitos
+Limite_MAG=as.polygons(spat_MAG)
+
+AS_MAG_small=terra::intersect(Limite_MAGCPRM,Limite_MAG) # área de intersecção de cada projeto
+AS_MAG_small_st=sf::st_as_sf(AS_MAG_small) # convertendo para sf
+
+plot(Limite_MAGCPRM,col='red',main="AS MAG")
+plot(Limite_MAG, col='blue', add=T,alpha=0.4)
+plot(AS_MAG_small_st[,1], add=T,lwd=2, lty='dashed')
+legend(749000,8297000,legend =c( "3013_03","1020"), fill=c("blue","red"))
+
+
+
+#KTESTE
+#spat_KtestCPRM=rast(KtestCPRMReamostrado > -Inf) #tirando valores Na e infinitos
+#Limite_KtestCPRM=as.polygons(spat_KtestCPRM)
+#Limite_KtestCPRM_sf=st_as_sf(Limite_KtestCPRM)
+
+#spat_Knit3009e3013=rast(Knit3009e3013 > -Inf) #tirando valores Na e infinitos
+#Limite_Knit3009e3013=as.polygons(spat_Knit3009e3013)
+
+#AS_K=terra::intersect(Limite_KtestCPRM,Limite_Knit3009e3013) # área de intersecção de #cada projeto
+#AS_K_st=sf::st_as_sf(AS_K) # convertendo para sf
+
+#plot(Limite_KtestCPRM,col='red',main="AS Ktest")
+##plot(spat_Knit3009e3013, col='blue', add=T,alpha=0.4)
+#plot(AS_K, add=T,lwd=2, lty='dashed')
+#legend(749000,8297000,legend =c( "3013_03","1020"), fill=c("blue","red"))
+#st_write(AS_K_st,"AS_K_st.shp")
+
+```
+
+Usando mascara na área de sutura transformando em pontos
+```{r}
+#AS_KtestCPRM=mask(KtestCPRMReamostrado,AS_K_st)  #mascara de K para área sutura
+#pt_AS_KtestCPRM=rasterToPoints(AS_KtestCPRM)#convertendo o raster para pontos
+#summary(pt_AS_KtestCPRM[,3]) # as colunas 1 e 2 são as coordenadas.
+#nrow(pt_AS_KtestCPRM)
+
+#AS_Knit3009e3013=mask(Knit3009e3013Reamostrado,AS_K_st)
+#pt_AS_Knit3009e3013=rasterToPoints(AS_Knit3009e3013)
+#summary(pt_AS_Knit3009e3013[,3])
+#nrow(pt_AS_Knit3009e3013)
+
+
+# Os números das linahs tem de ser os mesmas 
+
+###Agora para área small
+AS_KCPRM=mask(KCPRMReamostrado,AS_K_small_st)  #mascara de K para área sutura
+pt_AS_KCPRM=rasterToPoints(AS_KCPRM)#convertendo o raster para pontos
+summary(pt_AS_KCPRM[,3]) # as colunas 1 e 2 são as coordenadas.
+nrow(pt_AS_KCPRM)
+
+AS_Knit3009e3013_small=mask(Knit3009e3013,AS_K_small_st)
+pt_AS_Knit3009e3013_small=rasterToPoints(AS_Knit3009e3013_small)
+summary(pt_AS_Knit3009e3013_small[,3])
+nrow(pt_AS_Knit3009e3013_small)
+
+#Th Folha SD22ZD
+AS_ThCPRMsmall=mask(ThCPRMReamostrado,AS_Th_small_st)  #mascara de K para área sutura
+pt_AS_ThCPRMsmall=rasterToPoints(AS_ThCPRMsmall)#convertendo o raster para pontos
+summary(pt_AS_ThCPRMsmall[,3]) # as colunas 1 e 2 são as coordenadas.
+nrow(pt_AS_ThCPRMsmall)
+
+AS_ThPPMsmall=mask(ThPPM,AS_Th_small_st)
+pt_AS_ThPPMsmall=rasterToPoints(AS_ThPPMsmall)
+summary(pt_AS_ThPPMsmall[,3])
+nrow(pt_AS_ThPPMsmall)
+
+#U Folha SD22ZD
+AS_UCPRMsmall=mask(UCPRMeamostrado,AS_U_small_st)  #mascara de K para área sutura
+pt_AS_UCPRMsmall=rasterToPoints(AS_UCPRMsmall)#convertendo o raster para pontos
+summary(pt_AS_UCPRMsmall[,3]) # as colunas 1 e 2 são as coordenadas.
+nrow(pt_AS_UCPRMsmall)
+
+AS_UPPMsmall=mask(UPPM,AS_U_small_st)
+pt_AS_UPPMsmall=rasterToPoints(AS_UPPMsmall)
+summary(pt_AS_UPPMsmall[,3])
+nrow(pt_AS_UPPMsmall)
+
+#Para CT SD22ZD
+AS_CT_small=mask(CTCPRMeamostrado,AS_CT_small_st)  #mascara de K para área sutura
+pt_AS_CTCPRMsmall=rasterToPoints(AS_CT_small)#convertendo o raster para pontos
+summary(pt_AS_CTCPRMsmall[,3]) # as colunas 1 e 2 são as coordenadas.
+nrow(pt_AS_CTCPRMsmall)
+
+AS_CTsmall=mask(CT,AS_CT_small_st)
+pt_AS_CTsmall=rasterToPoints(AS_CTsmall)
+summary(pt_AS_CTsmall[,3])
+nrow(pt_AS_CTsmall)
+
+#Para Mag
+AS_MAG_small=mask(MAGCPRMReamostrado,AS_MAG_small_st)  #mascara de K para área sutura
+pt_AS_MAGCPRMsmall=rasterToPoints(AS_MAG_small)#convertendo o raster para pontos
+summary(pt_AS_MAGCPRMsmall[,3]) # as colunas 1 e 2 são as coordenadas.
+nrow(pt_AS_MAGCPRMsmall)
+
+AS_MAGsmall=mask(MAG,AS_MAG_small_st)
+pt_AS_MAGsmall=rasterToPoints(AS_MAGsmall)
+summary(pt_AS_MAGsmall[,3])
+nrow(pt_AS_MAGsmall)
+```
+
+Regressão Linear Novo
+```{r}
+plot(pt_AS_Knit3009e3013[,3]~pt_AS_KtestCPRM[,3],main="knit~K1020")
+ModelRL_K=lm(pt_AS_Knit3009e3013[,3]~pt_AS_KtestCPRM[,3])
+abline(ModelRL_K, col='red')
+print('modelo K')
+summary(ModelRL_K)
+#just to remember
+#lm(y-values,x-values)
+#y-values=y-INTERCEPT+slope*x-values 
+
+#remember as well
+#multiple R-square é apenas or R^2 . significa o quanto o valor x pode explicar a variação de y value
+
+
+#para área menor
+plot(pt_AS_Knit3009e3013_small[,3]~pt_AS_KCPRM[,3],main="knit~K1020 SMALL")
+ModelRL_Ksmall=lm(pt_AS_Knit3009e3013_small[,3]~pt_AS_KCPRM[,3])
+abline(ModelRL_Ksmall, col='red')
+print('ModelRL_Ksmall ')
+summary(ModelRL_Ksmall)
+
+
+#Regressão para Th folha SD22Z
+plot(pt_AS_ThPPMsmall[,3]~pt_AS_ThCPRMsmall[,3],main="Thknit~Th1020 SMALL")
+ModelRL_Thsmall=lm(pt_AS_ThPPMsmall[,3]~pt_AS_ThCPRMsmall[,3])
+abline(ModelRL_Thsmall, col='red')
+print('ModelRL_Thsmall ')
+summary(ModelRL_Thsmall)
+
+
+```
+
+Aplicando parâmetros da regressão no projeto 1020
+```{r}
+
+Rl_K_1020<- -0.814321 + KtestCPRM*4.269007
+KtestCPRM%>%values%>%summary # mesmo que escrever summary(values(KtestCPRM))
+summary(Rl_K_1020)
+#writeRaster(RL_K3013, "RL_U3013test.ers", overwrite=T)
+
+# para area folha SD22Z-small
+#k
+Rl_K_1020_small<- -0.725408 + KtestCPRM*3.988385
+KCPRM%>%values%>%summary
+summary(Rl_K_1020_small)
+
+#Th
+Rl_Th_1020_small<- -0.555146 + ThCPRM*1.033277
+ThPPM%>%values%>%summary
+summary(Rl_Th_1020_small)
+
+```
+Comparando histogramas 1020
+```{r}
+#K
+hist(Rl_K_1020, col=rgb(0,0,1,1/4), xlim=c(-2,7), main="Potássio R-3013_09 G-1020 B-RL1020") # BLue
+hist(Knit3009e3013,col=rgb(1,0,0,1/4), xlim=c(-2,7), add= T) # Red
+hist(KtestCPRM, col=rgb(0,1,0,1/4), xlim=c(-2,7), add=T) # Green
+
+
+#para Folha(small) 
+#K
+hist(Rl_K_1020_small, col=rgb(0,0,1,1/4), xlim=c(-2,7), main="Potássio R-3013_09 G-1020 B-RL1020") # BLue
+hist(Knit3009e3013,col=rgb(1,0,0,1/4), xlim=c(-2,7), add= T) # Red
+hist(KtestCPRM, col=rgb(0,1,0,1/4), xlim=c(-2,7), add=T) # Green
+
+#Th
+hist(Rl_Th_1020_small, col=rgb(0,0,1,1/4), xlim=c(-6,160), main="Tório R-3013_09 G-1020 B-RL1020") # BLue
+hist(ThPPM,col=rgb(1,0,0,1/4), xlim=c(-6,160), add= T) # Red
+hist(ThCPRM, col=rgb(0,1,0,1/4), xlim=c(-6,160), add=T) # Green
+
+
+```
+Automático k
+```{r}
+pt_KCPRMReamostrado=rasterToPoints(KCPRMReamostrado)#convertendo para um formato levgivel para a função 'sd'
+script_K=pt_KCPRMReamostrado[,3] #talvez não tenha de colocar os de RL 
+
+dK=rasterToPoints(KPERC)
+dK=dK[,3]
+
+mean(dK)-mean(pt_KCPRMReamostrado[,3])
+
+b0K=4
+b1K=-1
+
+iniciotempo= Sys.time() 
+
+# o "|" é operador booleano OR
+#Near da o valor aproximado com tolerancia igual a "tool"
+while (near(sd(script_K),sd(dK), tol = 0.001)==FALSE | near(mean(script_K),mean(dK), tol = 0.001)==FALSE) {
+  script_K=(b0K*pt_KCPRMReamostrado[,3]) + b1K
+  while (near(sd(script_K),sd(dK), tol = 0.001)==FALSE)  {
+    script_K=(b0K*pt_KCPRMReamostrado[,3]) + b1K
+    b0K=b0K+0.001
+
+    }
+    
+  if (near(mean(script_K),mean(dK), tol = 0.001)==FALSE) {
+          b1K=b1K-0.001
+          }
+  
+  if (near(mean(script_K),mean(dK),tol = 0.001)==TRUE & near(sd(script_K),sd(dK), tol = 0.001)==TRUE){
+      print("FIM")
+      cat('b1=',b1K)
+      cat("b0=", b0K)
+      break}}
+
+TempoTotal=Sys.time()-iniciotempo
+print(TempoTotal)
+
+Automa_K_1020=(b0K*KCPRMReamostrado) + b1K
+summary(Automa_K_1020)
+```
+Automático Th e aplicando
+```{r}
+script_Th=rasterToPoints(ThCPRMReamostrado)  #convertendo para um formato levgivel para a função 'sd'
+script_Th=script_Th[,3] 
+pt_ThCPRMReamostrado=rasterToPoints(ThCPRMReamostrado)
+
+dTh=rasterToPoints(ThPPM)
+dTh=dTh[,3]
+
+b0Th=1.5
+b1Th=-7
+
+iniciotempo= Sys.time() 
+
+# o "|" é operador booleano OR
+#Near da o valor aproximado com tolerancia igual a "tool"
+while (near(sd(script_Th),sd(dTh), tol = 0.001)==FALSE | near(mean(script_Th),mean(dTh), tol = 0.001)==FALSE) {
+  script_Th=(b0Th*pt_ThCPRMReamostrado[,3]) + b1Th
+  while (near(sd(script_Th),sd(dTh), tol = 0.001)==FALSE) {
+    script_Th=(b0Th*pt_ThCPRMReamostrado[,3]) + b1Th
+    b0Th=b0Th+0.0001
+    }
+    
+  if (near(mean(script_Th),mean(dTh), tol = 0.001)==FALSE) {
+          b1Th=b1Th-0.001
+          }
+  
+  if (near(mean(script_Th),mean(dTh),tol = 0.001)==TRUE & near(sd(script_Th),sd(dTh), tol = 0.001)==TRUE){
+      print("FIM")
+      cat('b1=',b1Th)
+      cat("b0=", b0Th)
+      break}}
+
+TempoTotal=Sys.time()-iniciotempo
+print(TempoTotal)
+
+
+Automa_Th_1020=(b0Th*ThCPRMReamostrado) + b1Th
+summary(Rl_Th_1020_small)
+summary(Automa_Th_1020)
+```
+Automático U
+```{r}
+pt_UCPRMReamostrado=rasterToPoints(UCPRMeamostrado)#convertendo para um formato levgivel para a função 'sd'
+script_U=pt_UCPRMReamostrado[,3]
+
+dU=rasterToPoints(UPPM)
+dU=dU[,3]
+
+
+mean(dU)-mean(pt_UCPRMReamostrado[,3])
+
+b0U=0.2
+b1U=-2.3
+
+iniciotempo= Sys.time() 
+
+# o "|" é operador booleano OR
+#Near da o valor aproximado com tolerancia igual a "tool"
+while (near(sd(script_U),sd(dU), tol = 0.001)==FALSE | near(mean(script_U),mean(dU), tol = 0.001)==FALSE) {
+  script_U=(b0U*pt_UCPRMReamostrado[,3]) + b1U
+  while (near(sd(script_U),sd(dU), tol = 0.001)==FALSE)  {
+    script_U=(b0U*pt_UCPRMReamostrado[,3]) + b1U
+    b0U=b0U+0.001
+    }
+    
+  if (near(mean(script_U),mean(dU), tol = 0.001)==FALSE) {
+          b1U=b1U-0.001
+          }
+  
+  if (near(mean(script_U),mean(dU),tol = 0.001)==TRUE & near(sd(script_U),sd(dU), tol = 0.001)==TRUE){
+      print("FIM")
+      cat('b1=',b1U)
+      cat("b0=", b0U)
+      break}}
+
+TempoTotal=Sys.time()-iniciotempo
+print(TempoTotal)
+
+Automa_U_1020<- (b0U*UCPRMeamostrado)+b1U
+summary(Automa_U_1020)
+```
+Automático CT
+```{r}
+pt_CTCPRMReamostrado=rasterToPoints(CTCPRMeamostrado)#convertendo para um formato levgivel para a função 'sd'
+script_CT=pt_CTCPRMReamostrado[,3]
+
+dU=rasterToPoints(CT)
+dU=dU[,3]
+
+
+mean(dU)-mean(pt_CTCPRMReamostrado[,3])
+
+b0CT=1.2
+b1CT=-4.2
+
+iniciotempo= Sys.time() 
+
+# o "|" é operador booleano OR
+#Near da o valor aproximado com tolerancia igual a "tool"
+while (near(sd(script_CT),sd(dU), tol = 0.001)==FALSE | near(mean(script_CT),mean(dU), tol = 0.001)==FALSE) {
+  script_CT=(b0CT*pt_CTCPRMReamostrado[,3]) + b1CT
+  while (near(sd(script_CT),sd(dU), tol = 0.001)==FALSE)  {
+    script_CT=(b0CT*pt_CTCPRMReamostrado[,3]) + b1CT
+    b0CT=b0CT+0.0001
+    }
+    
+  if (near(mean(script_CT),mean(dU), tol = 0.001)==FALSE) {
+          b1CT=b1CT-0.001
+          }
+  
+  if (near(mean(script_CT),mean(dU),tol = 0.001)==TRUE & near(sd(script_CT),sd(dU), tol = 0.001)==TRUE){
+      print("FIM")
+      cat('b1=',b1CT)
+      cat("b0=", b0CT)
+      break}}
+
+TempoTotal=Sys.time()-iniciotempo
+print(TempoTotal)
+
+Automa_CT_1020<- (b0CT*CTCPRMeamostrado) +b1CT
+summary(Automa_CT_1020)
+```
+Automático Mag
+```{r}
+pt_MAGReamostrado=rasterToPoints(MAGCPRMReamostrado)#convertendo para um formato legivel para a função 'sd'
+script_MAG=pt_MAGReamostrado[,3]
+
+dU=rasterToPoints(MAG)
+dU=dU[,3]
+
+
+mean(dU)-mean(pt_MAGReamostrado[,3])
+
+b0MAG=3.6
+b1MAG=-565.5
+
+iniciotempo= Sys.time() 
+
+# o "|" é operador booleano OR
+#Near da o valor aproximado com tolerancia igual a "tool"
+while (near(sd(script_MAG),sd(dU), tol = 0.001)==FALSE | near(mean(script_MAG),mean(dU), tol = 0.001)==FALSE) {
+  script_MAG=(b0MAG*pt_MAGReamostrado[,3]) + b1MAG
+  while (near(sd(script_MAG),sd(dU), tol = 0.001)==FALSE)  {
+    script_MAG=(b0MAG*pt_MAGReamostrado[,3]) + b1MAG
+    b0MAG=b0MAG+0.0001
+    }
+    
+  if (near(mean(script_MAG),mean(dU), tol = 0.001)==FALSE) {
+          b1MAG=b1MAG-0.001
+          }
+  
+  if (near(mean(script_MAG),mean(dU),tol = 0.001)==TRUE & near(sd(script_MAG),sd(dU), tol = 0.001)==TRUE){
+      print("FIM")
+      cat('b1=',b1MAG)
+      cat("b0=", b0MAG)
+      break}}
+
+TempoTotal=Sys.time()-iniciotempo
+print(TempoTotal)
+
+Automa_MAG_1020<- (b0MAG*MAGCPRMReamostrado) +b1MAG
+summary(Automa_MAG_1020)
+```
+
+Comparando HISTOGRAMAS
+```{r}
+#Para K
+hist(Knit3009e3013,col=rgb(1,0,0,1/2), xlim=c(-2,7), main="Potássio R-3013_09 G-1020 B-Auto_1020") # Red
+hist(KtestCPRM, col=rgb(0,1,0,1), xlim=c(-2,7), add=T) # Green
+hist(Automa_K_1020, col=rgb(0,0,1,0.5), xlim=c(-2,7), add= T) # BLue
+legend("right", legend=c("3013_09","1020","Automat_1020"),fill=c("Red","Green","Blue"))
+
+
+#hist(Knit3009e3013,col=rgb(1,0,0,1/4), xlim=c(-2,7), main="Potássio R-3013_09 G-1020 B-RL1020") # Red
+#hist(KtestCPRM, col=rgb(0,1,0,1/4), xlim=c(-2,7), add=T) # Green
+#hist(Rl_K_1020, col=rgb(0,0,1,1/4), xlim=c(-2,7), add= T) # BLue
+#legend("right", legend=c("3013_09","1020","RL_1020"),fill=c("Red","Green","Blue"))
+
+
+#para tH
+hist(ThPPM,col=rgb(1,0,0,1/4), xlim=c(-2,100), main="TÓRIO R-3013_09 G-1020 B-Auto_1020") # Red
+hist(pt_ThCPRMReamostrado[,3], col=rgb(0,1,0,1/4), xlim=c(-2,100), add=T) # Green
+hist(Automa_Th_1020, col=rgb(0,0,1,1/4), xlim=c(-9,100), add= T) # BLue
+legend("right", legend=c("3013_09","1020","Automat_1020"),fill=c("Red","Green","Blue"))
+
+#Para U
+hist(UPPM,col=rgb(1,0,0,1/4), xlim=c(-2,15), main="Urânio R-3013_09 G-1020 B-Auto_1020")
+hist(pt_UCPRMReamostrado[,3], col=rgb(0,1,0,1/4), xlim=c(-2,15), add=T) # Green
+hist(Automa_U_1020, col=rgb(0,0,1,1/4), xlim=c(-9,15), add= T) # BLue
+legend("right", legend=c("3013_09","1020","Automat_1020"),fill=c("Red","Green","Blue"))
+
+#Para Ct
+hist(CT,col=rgb(1,0,0,1/4), xlim=c(-5,55), main="CT R-3013_09 G-1020 B-Auto_1020") # Red
+hist(pt_CTCPRMReamostrado[,3], col=rgb(0,1,0,1/4), xlim=c(-5,55), add=T) # Green
+hist(Automa_CT_1020, col=rgb(0,0,1,1/4), xlim=c(-5,55), add= T) # BLue
+legend("right", legend=c("3013_09","1020","Automat_1020"),fill=c("Red","Green","Blue"))
+
+#Para MAG
+hist(MAG,col=rgb(1,0,0,1/4), xlim=c(-720,1200), main="MAG R-3013_09 G-1020 B-Auto_1020") # Red
+hist(pt_MAGReamostrado[,3], col=rgb(0,1,0,1/4), xlim=c(-720,1200), add=T) # Green
+hist(Automa_MAG_1020, col=rgb(0,0,1,1/4), xlim=c(-720,1200), add= T) # BLue
+legend("right", legend=c("3013_09","1020","Automat_1020"),fill=c("Red","Green","Blue"))
+```
+
+Exportando 
+```{r}
+setwd("E:\\Mestrado\\Dados\\Dados_Process\\Geofísica_Final")
+writeRaster(Automa_CT_1020,"CT_Automatic.ers",format="ERS",overwrite=T)
+writeRaster(Automa_K_1020,"K_Automatic.ers",format="ERS",overwrite=T)
+writeRaster(Automa_Th_1020,"Th_Automatic.ers",format="ERS",overwrite=T)
+writeRaster(Automa_U_1020,"U_Automatic.ers",format="ERS",overwrite=T)
+writeRaster(Automa_MAG_1020,"MAG_Automatic.ers",format="ERS",overwrite=T)
+
+```
+Importando os Knit
+```{r}
+setwd("E:\\Mestrado\\Dados\\Dados_Process\\Geofísica_Final")
+U_Final=raster("U.ers")
+K_Final=raster("K.ers")
+Th_Final=raster("Th.ers")
+Ct_Final=raster("CT.ers")
+ASA_Final=raster("ASA.ers")
+```
+analisando % de valores menores que zero
+```{r}
+###Para o U
+a=U_Final[U_Final<=0] #selecionando apenas os valores menores que zero
+length(a)
+
+sum(values(U_Final), na.rm=TRUE)
+cellStats(U_Final, 'sum', na.rm=T) #Serve tanto o esse método quanto o de cima
+
+#porcentagem
+Percentage_U=(length(a)/sum(values(U_Final), na.rm=TRUE))*100
+
+####Para o K
+a=K_Final[K_Final<=0] #selecionando apenas os valores menores que zero
+
+sum(values(K_Final), na.rm=TRUE)
+cellStats(K_Final, 'sum', na.rm=T)
+
+#porcentagem
+Percentage_K=(length(a)/sum(values(K_Final), na.rm=TRUE))*100
+
+### TH
+a=Th_Final[Th_Final<=0] #selecionando apenas os valores menores que zero
+length(a)
+
+sum(values(Th_Final), na.rm=TRUE)
+cellStats(Th_Final, 'sum', na.rm=T) #Serve tanto o esse método quanto o de cima
+
+#porcentagem
+Percentage_Th=(length(a)/sum(values(Th_Final), na.rm=TRUE))*100
+
+####CT
+a=Ct_Final[Ct_Final<=0] #selecionando apenas os valores menores que zero
+length(a)
+sum(values(Ct_Final), na.rm=TRUE)
+cellStats(Ct_Final, 'sum', na.rm=T) #Serve tanto o esse método quanto o de cima
+
+#porcentagem
+Percentage_CT=(length(a)/sum(values(Ct_Final), na.rm=TRUE))*100
+
+cat("U =", Percentage_U,"%")
+cat("K =", Percentage_K,"%")
+cat("Th =", Percentage_Th,"%")
+cat("CT =", Percentage_CT,"%")
+
+```
+
+Grids sem valores menores que zero
+```{r}
+#U
+a=setMinMax(U_Final)
+minValue(a)
+cat("U_MinValue =", a@data@min)
+
+U_Positivo=(-1*minValue(a))+U_Final+1 # o +1 é para returar o zero
+
+#Para K
+a=setMinMax(K_Final)
+minValue(a)
+cat("K_MinValue =", a@data@min)
+
+K_Positivo=(-1*minValue(a))+K_Final+1 # o +1 é para returar o zero
+
+#Para Th
+a=setMinMax(Th_Final)
+minValue(a)
+cat("Th_MinValue =", a@data@min)
+
+Th_Positivo=(-1*minValue(a))+Th_Final+1 # o +1 é para returar o zero
+
+#Para CT
+a=setMinMax(Ct_Final)
+minValue(a)
+cat("CT_MinValue =", a@data@min)
+
+CT_Positivo=(-1*minValue(a))+Ct_Final+1 # o +1 é para returar o zero
+
+
+#exporting
+setwd("E:\\Mestrado\\Dados\\Dados_Process\\Geofísica_Final")
+
+writeRaster(CT_Positivo,"CT_Positivo",format="ERS",overwrite=T)
+writeRaster(Th_Positivo,"Th_Positivo",format="ERS",overwrite=T)
+writeRaster(K_Positivo,"K_Positivo",format="ERS",overwrite=T)
+writeRaster(U_Positivo,"U_Positivo",format="ERS",overwrite=T)
+
+```
+
+Realizando Razões
+```{r}
+UK_posit=U_Positivo/K_Positivo
+UTh_posit=U_Positivo/Th_Positivo
+ThK_posit=Th_Positivo/K_Positivo
+Indice_Lat=(Th_Positivo*U_Positivo)/K_Positivo^2
+Indice_Mafico=(ASA_Final/(U_Positivo*Th_Positivo*K_Positivo))
+
+setwd("E:\\Mestrado\\Dados\\Dados_Process\\Geofísica_Final")
+writeRaster(UK_posit,"UK_posit",format="ERS",overwrite=T)
+writeRaster(UTh_posit,"UTh_posit",format="ERS",overwrite=T)
+writeRaster(ThK_posit,"ThK_posit",format="ERS",overwrite=T)
+writeRaster(Indice_Lat,"Indice_Lat",format="ERS",overwrite=T)
+writeRaster(Indice_Mafico,"Indice_Mafico",format="ERS",overwrite=T)
+                        
+```
+Classificando em alto-médio-baixo
+```{r}
+U_Final%>%values%>%summary #olhando estatísticas
+#teste1=as.matrix(U_Final)
+#min(teste1,na.rm=T)
+
+U_mean <- cellStats(U_Final, stat='mean', na.rm=TRUE) #média
+cellStats(U_Final, stat='mean', na.rm=TRUE)
+U_sd <- cellStats(U_Final, stat='sd', na.rm=TRUE)# Desvio padrão
+cellStats(U_Final, stat='sd', na.rm=TRUE)
+
+# criando vetor  
+m<-c(cellStats(U_Final, stat='min', na.rm=T)-0.01,cellStats(U_Final, stat='mean', na.rm=T)-(cellStats(U_Final, stat='sd', na.rm=T)/2),1,
+     cellStats(U_Final, stat='mean', na.rm=T)-(cellStats(U_Final, stat='sd', na.rm=T)/2),cellStats(U_Final, stat='mean', na.rm=T)+(cellStats(U_Final, stat='sd', na.rm=T)/2),2,
+    cellStats(U_Final, stat='mean', na.rm=T)+(cellStats(U_Final, stat='sd', na.rm=T)/2),cellStats(U_Final, stat='max', na.rm=T),3)
+#coloquei -0.1 no valor mínimo pq por alguma razão ele não estava computandoum valor.. talvez pq fosse igual?
+m<- matrix(m,ncol=3,byrow = T) # transformando em matrix
+
+U_final_reclass <- reclassify(U_Final,m) # reclassificando
+
+barplot(U_final_reclass,main = "Number of pixels in each class",col=c('blue', 'yellow', 'red')) # comparando número de pixels para cada classe
+
+plot(U_final_reclass,col=c('blue', 'yellow', 'red'),  legend = FALSE)
+     
+legend("topleft",
+    legend = c("Baixo", "Médio ", " Alto"),
+    fill = c("blue", "yellow", "red"),
+    border = FALSE,
+    bty = "n") # turn off legend border)
+
+#########Outro jeito de reclassificar
+##transformo em matriz
+#valores_raster=values(U_Final)
+#classe_1=ifelse(valores_raster<=-6.7,1,0)
+#teste=U_Final
+#values(teste)=classe_1
+
+
+##K
+
+K_Final%>%values%>%summary #olhando estatísticas
+
+K_mean <- cellStats(K_Final, stat='mean', na.rm=TRUE) #média
+cellStats(K_Final, stat='mean', na.rm=TRUE)
+K_sd <- cellStats(K_Final, stat='sd', na.rm=TRUE)# Desvio padrão
+cellStats(K_Final, stat='sd', na.rm=TRUE)
+
+# criando vetor  
+m<-c(cellStats(K_Final, stat='min', na.rm=T)-0.1,cellStats(K_Final, stat='mean', na.rm=T)-(cellStats(K_Final, stat='sd', na.rm=T)/2),10,
+     cellStats(K_Final, stat='mean', na.rm=T)-(cellStats(K_Final, stat='sd', na.rm=T)/2),cellStats(K_Final, stat='mean', na.rm=T)+(cellStats(K_Final, stat='sd', na.rm=T)/2),20,
+    cellStats(K_Final, stat='mean', na.rm=T)+(cellStats(K_Final, stat='sd', na.rm=T)/2),cellStats(K_Final, stat='max', na.rm=T),30)
+ 
+m<- matrix(m,ncol=3,byrow = T) # transformando em matrix
+
+K_Final_reclass <- reclassify(K_Final,m) # reclassificando
+
+barplot(K_Final_reclass,main = "Number of pixels in each class",col=c('blue', 'yellow', 'red')) # comparando número de pixels para cada classe
+
+plot(K_Final_reclass,col=c('blue', 'yellow', 'red'),  legend = FALSE)
+
+
+
+##Th_Final
+Th_Final%>%values%>%summary #olhando estatísticas
+
+Th_mean <- cellStats(Th_Final, stat='mean', na.rm=TRUE) #média
+cellStats(Th_Final, stat='mean', na.rm=TRUE)
+Th_sd <- cellStats(Th_Final, stat='sd', na.rm=TRUE)# Desvio padrão
+cellStats(Th_Final, stat='sd', na.rm=TRUE)
+
+# criando vetor  
+m<-c(cellStats(Th_Final, stat='min', na.rm=T)-0.1,cellStats(Th_Final, stat='mean', na.rm=T)-(cellStats(Th_Final, stat='sd', na.rm=T)/2),100,
+     cellStats(Th_Final, stat='mean', na.rm=T)-(cellStats(Th_Final, stat='sd', na.rm=T)/2),cellStats(Th_Final, stat='mean', na.rm=T)+(cellStats(Th_Final, stat='sd', na.rm=T)/2),200,
+    cellStats(Th_Final, stat='mean', na.rm=T)+(cellStats(Th_Final, stat='sd', na.rm=T)/2),cellStats(Th_Final, stat='max', na.rm=T),300)
+ 
+m<- matrix(m,ncol=3,byrow = T) # transformando em matrix
+
+Th_Final_reclass <- reclassify(Th_Final,m) # reclassificando
+
+barplot(Th_Final_reclass,main = "Number of pixels in each class",col=c('blue', 'yellow', 'red')) # comparando número de pixels para cada classe
+
+plot(Th_Final_reclass,col=c('blue', 'yellow', 'red'),  legend = FALSE)
+
+
+
+
+#CT
+Ct_Final%>%values%>%summary #olhando estatísticas
+
+Ct_mean <- cellStats(Ct_Final, stat='mean', na.rm=TRUE) #média
+cellStats(Ct_Final, stat='mean', na.rm=TRUE)
+Ct_sd <- cellStats(Ct_Final, stat='sd', na.rm=TRUE)# Desvio padrão
+cellStats(Ct_Final, stat='sd', na.rm=TRUE)
+
+# criando vetor  
+m<-c(cellStats(Ct_Final, stat='min', na.rm=T)-0.1,cellStats(Ct_Final, stat='mean', na.rm=T)-(cellStats(Ct_Final, stat='sd', na.rm=T)/2),1000,
+     cellStats(Ct_Final, stat='mean', na.rm=T)-(cellStats(Ct_Final, stat='sd', na.rm=T)/2),cellStats(Ct_Final, stat='mean', na.rm=T)+(cellStats(Ct_Final, stat='sd', na.rm=T)/2),2000,
+    cellStats(Ct_Final, stat='mean', na.rm=T)+(cellStats(Ct_Final, stat='sd', na.rm=T)/2),cellStats(Ct_Final, stat='max', na.rm=T),3000)
+ 
+m<- matrix(m,ncol=3,byrow = T) # transformando em matrix
+
+Ct_Final_reclass <- reclassify(Ct_Final,m) # reclassificando
+
+barplot(Ct_Final_reclass,main = "Number of pixels in each class",col=c('blue', 'yellow', 'red')) # comparando número de pixels para cada classe
+
+plot(Ct_Final_reclass,col=c('blue', 'yellow', 'red'),  legend = FALSE)
+
+
+```
+Juntando a classificação
+```{r}
+Th_K_U=K_Final_reclass+Th_Final_reclass+U_final_reclass
+plot(Th_K_U, col= blue2red(27)) # pacote colorRamps
+hist(Th_K_U, main="Distribution of K_Th_U values", 
+     col= "purple", 
+     maxpixels=22000000)
+setwd("E:\\Mestrado\\Dados\\Dados_Process\\Geofísica_Final")
+writeRaster(Th_K_U,"Th_K_U.tif",overwrite=T)
+
+Th_K_U_CT=Th_Final_reclass+K_Final_reclass+U_final_reclass+Ct_Final_reclass
+plot(Th_K_U_CT, col= blue2red(71)) # Acho que não precisa do CT 
+# ficou ruim com as cores pq mudei os valores de 1,2,3 em todos para. 1,2,3-10,20,30 e 100,200,300
+
+#pal <- choose_palette()
+hist(Th_K_U_CT, main="Distribution of Th_K_U_CT values", 
+     col= "purple", 
+     maxpixels=22000000)
+```
+Para a área SVM
+```{r}
+mask_U_final=mask(U_Final,SVMsmall) %>% plot()
+mask_K_Final=mask(K_Final,SVMsmall) %>% plot()
+mask_Th_Final=mask(Th_Final,SVMsmall) %>% plot()
+mask_Ct_Final=mask(Ct_Final,SVMsmall) %>% plot()
+
+mask_U_final=mask(U_Final,SVMsmall)
+mask_K_Final=mask(K_Final,SVMsmall)
+mask_Th_Final=mask(Th_Final,SVMsmall) 
+mask_Ct_Final=mask(Ct_Final,SVMsmall) 
+```
+Cassificando svm
+```{r}
+#U####
+mask_U_final%>%values%>%summary #olhando estatísticas
+#teste1=as.matrix(U_Final)
+#min(teste1,na.rm=T)
+
+U_mean <- cellStats(mask_U_final, stat='mean', na.rm=TRUE) #média
+cellStats(mask_U_final, stat='mean', na.rm=TRUE)
+U_sd <- cellStats(mask_U_final, stat='sd', na.rm=TRUE)# Desvio padrão
+cellStats(mask_U_final, stat='sd', na.rm=TRUE)
+
+# criando vetor  
+m<-c(cellStats(mask_U_final, stat='min', na.rm=T)-0.01,cellStats(mask_U_final, stat='mean', na.rm=T)-(cellStats(mask_U_final, stat='sd', na.rm=T)/2),1,
+     cellStats(mask_U_final, stat='mean', na.rm=T)-(cellStats(mask_U_final, stat='sd', na.rm=T)/2),cellStats(mask_U_final, stat='mean', na.rm=T)+(cellStats(mask_U_final, stat='sd', na.rm=T)/2),2,
+    cellStats(mask_U_final, stat='mean', na.rm=T)+(cellStats(mask_U_final, stat='sd', na.rm=T)/2),cellStats(mask_U_final, stat='max', na.rm=T),3)
+#coloquei -0.1 no valor mínimo pq por alguma razão ele não estava computandoum valor.. talvez pq fosse igual?
+m<- matrix(m,ncol=3,byrow = T) # transformando em matrix
+
+mask_U_final_reclass <- reclassify(mask_U_final,m) # reclassificando
+
+barplot(mask_U_final_reclass,main = "Number of pixels in each class",col=c('blue', 'yellow', 'red')) # comparando número de pixels para cada classe
+
+plot(mask_U_final_reclass,col=c('blue', 'yellow', 'red'),  legend = FALSE)
+     
+legend("topleft",
+    legend = c("Baixo", "Médio ", " Alto"),
+    fill = c("blue", "yellow", "red"),
+    border = FALSE,
+    bty = "n") # turn off legend border)
+
+#########Outro jeito de reclassificar
+##transformo em matriz
+#valores_raster=values(mask_U_final)
+#classe_1=ifelse(valores_raster<=-6.7,1,0)
+#teste=mask_U_final
+#values(teste)=classe_1
+
+
+##K####
+
+mask_K_Final%>%values%>%summary #olhando estatísticas
+
+K_mean <- cellStats(mask_K_Final, stat='mean', na.rm=TRUE) #média
+cellStats(mask_K_Final, stat='mean', na.rm=TRUE)
+K_sd <- cellStats(mask_K_Final, stat='sd', na.rm=TRUE)# Desvio padrão
+cellStats(mask_K_Final, stat='sd', na.rm=TRUE)
+
+# criando vetor  
+m<-c(cellStats(mask_K_Final, stat='min', na.rm=T)-0.1,cellStats(mask_K_Final, stat='mean', na.rm=T)-(cellStats(mask_K_Final, stat='sd', na.rm=T)/2),10,
+     cellStats(mask_K_Final, stat='mean', na.rm=T)-(cellStats(mask_K_Final, stat='sd', na.rm=T)/2),cellStats(mask_K_Final, stat='mean', na.rm=T)+(cellStats(mask_K_Final, stat='sd', na.rm=T)/2),20,
+    cellStats(mask_K_Final, stat='mean', na.rm=T)+(cellStats(mask_K_Final, stat='sd', na.rm=T)/2),cellStats(mask_K_Final, stat='max', na.rm=T),30)
+ 
+m<- matrix(m,ncol=3,byrow = T) # transformando em matrix
+
+mask_K_Final_reclass <- reclassify(mask_K_Final,m) # reclassificando
+
+barplot(mask_K_Final_reclass,main = "Number of pixels in each class",col=c('blue', 'yellow', 'red')) # comparando número de pixels para cada classe
+
+plot(mask_K_Final_reclass,col=c('blue', 'yellow', 'red'),  legend = FALSE)
+
+
+
+##Th_Final####
+mask_Th_Final%>%values%>%summary #olhando estatísticas
+
+Th_mean <- cellStats(mask_Th_Final, stat='mean', na.rm=TRUE) #média
+cellStats(mask_Th_Final, stat='mean', na.rm=TRUE)
+Th_sd <- cellStats(mask_Th_Final, stat='sd', na.rm=TRUE)# Desvio padrão
+cellStats(mask_Th_Final, stat='sd', na.rm=TRUE)
+
+# criando vetor  
+m<-c(cellStats(mask_Th_Final, stat='min', na.rm=T)-0.1,cellStats(mask_Th_Final, stat='mean', na.rm=T)-(cellStats(mask_Th_Final, stat='sd', na.rm=T)/2),100,
+     cellStats(mask_Th_Final, stat='mean', na.rm=T)-(cellStats(mask_Th_Final, stat='sd', na.rm=T)/2),cellStats(mask_Th_Final, stat='mean', na.rm=T)+(cellStats(mask_Th_Final, stat='sd', na.rm=T)/2),200,
+    cellStats(mask_Th_Final, stat='mean', na.rm=T)+(cellStats(mask_Th_Final, stat='sd', na.rm=T)/2),cellStats(mask_Th_Final, stat='max', na.rm=T),300)
+ 
+m<- matrix(m,ncol=3,byrow = T) # transformando em matrix
+
+mask_Th_Final_reclass <- reclassify(mask_Th_Final,m) # reclassificando
+
+barplot(mask_Th_Final_reclass,main = "Number of pixels in each class",col=c('blue', 'yellow', 'red')) # comparando número de pixels para cada classe
+
+plot(mask_Th_Final_reclass,col=c('blue', 'yellow', 'red'),  legend = FALSE)
+
+
+
+
+#CT####
+mask_Ct_Final%>%values%>%summary #olhando estatísticas
+
+Ct_mean <- cellStats(mask_Ct_Final, stat='mean', na.rm=TRUE) #média
+cellStats(mask_Ct_Final, stat='mean', na.rm=TRUE)
+Ct_sd <- cellStats(mask_Ct_Final, stat='sd', na.rm=TRUE)# Desvio padrão
+cellStats(mask_Ct_Final, stat='sd', na.rm=TRUE)
+
+# criando vetor  
+m<-c(cellStats(mask_Ct_Final, stat='min', na.rm=T)-0.1,cellStats(mask_Ct_Final, stat='mean', na.rm=T)-(cellStats(mask_Ct_Final, stat='sd', na.rm=T)/2),1000,
+     cellStats(mask_Ct_Final, stat='mean', na.rm=T)-(cellStats(mask_Ct_Final, stat='sd', na.rm=T)/2),cellStats(mask_Ct_Final, stat='mean', na.rm=T)+(cellStats(mask_Ct_Final, stat='sd', na.rm=T)/2),2000,
+    cellStats(mask_Ct_Final, stat='mean', na.rm=T)+(cellStats(mask_Ct_Final, stat='sd', na.rm=T)/2),cellStats(mask_Ct_Final, stat='max', na.rm=T),3000)
+ 
+m<- matrix(m,ncol=3,byrow = T) # transformando em matrix
+
+mask_Ct_Final_reclass <- reclassify(mask_Ct_Final,m) # reclassificando
+
+barplot(mask_Ct_Final_reclass,main = "Number of pixels in each class",col=c('blue', 'yellow', 'red')) # comparando número de pixels para cada classe
+
+plot(mask_Ct_Final_reclass,col=c('blue', 'yellow', 'red'),  legend = FALSE)
+
+```
+Juntando as calassificações das mascaras -SVM small
+```{r}
+Th_K_U_MASK=mask_K_Final_reclass+mask_Th_Final_reclass+mask_U_final_reclass
+plot(Th_K_U_MASK, col= blue2red(27)) # pacote colorRamps
+hist(Th_K_U_MASK, main="Distribution of Th_K_U_MASK values", 
+     col= "purple", 
+     maxpixels=22000000)
+setwd("E:\\Mestrado\\Dados\\Dados_Process\\Geofísica_Final")
+writeRaster(Th_K_U_MASK,"Th_K_U_MASK.tif",overwrite=T)
+
+
+```
+
+```{r}
+# litholohia que será o raster de zona
+#Zonateste=raster("E:\\Mestrado\\Dados\\Dados_Process\\Lithology\\One_hot_simp\\lito_MP2_delta_mga.tif") # aqui é melhor transgormar o raster de geologia inteiro com um valor diferente para cada litologia
+#plot(Zonateste)
+
+#da pra fazer com a shp. é o que vou tentar 
+```
+```{r}
+#statzonatest=zonal(q,Zonateste,fun='mean', digits=5, na.rm=T)
+```
+
+
+```{r}
+#convertendo para Spatial e conferindo classe
+Lbasin_sp=as(Lbasin, "Spatial")
+class(Lbasin_sp)
+
+SVMsmall_sp=as(SVMsmall, "Spatial")
+class(SVMsmall_sp)
+glimpse(SVMsmall)
+
+#convertendo para pp
+SVMsmall.ppp=as(SVMsmall_sp,"ppp")
+
+
+Lbasin_ppp=as(Lbasin_sp,"ppp")
+
+#conferindo classes
+class(Lbasin_ppp)
+class(SVMsmall_ppp)
+
+```
+
+
+```
+```{r}
+r <- raster(system.file("external/test.grd", package="raster") )
+s <- stack(r, 1/r, sqrt(r))
+pairs(s)
+
+## Not run: 
+# to make indvidual histograms:
+hist(r)
+# or scatter plots:
+plot(r, 1/r)
+
+## End(Not run)
+```
+
+
+```{r}
+tm_shape(r)+
+     tm_raster()+
+     tm_shape(SVMsmall)
+```
+
+```{r}
+#transformando raster em pontos
+t=mask_SVMsmall$tessteULEV %>%
+  raster::rasterToPoints()
+
+hist(t[,3],col='green')
+
+t.tibble=tibble::as.tibble(t) #convertendo para tibble
+
+t.tibble.vector= t.tibble %>%
+  sf::st_as_sf(coords=c("y","x"), crs=32722) %>%
+  as.numeric('tessteULEV')
+  #head(t) # para ver apenas as 6 primeirasl linhas
+  
+```
+
+```{r}
+z=mask_SVMsmall$tessteULEV %>%
+  raster::rasterToPoints() %>%
+  tibble::as.tibble()%>% #convertendo para tibble
+  ggplot()
+  aes(x=x,y=y,fill=tessteULEV)+
+  geom_raster()
+z
+```
+
+
+test boxplot
+```{r}
+UPPM=raster("uppm.ers")
+hist(UPPM,
+     main = "Distribution of U",
+     xlab = "U (ppm)", ylab = "Frequency",
+     col = "springgreen")
+
+boxplot(UPPM,
+        main = "Boxplot of U",
+        xlab="U (ppm)",
+        ylab="Frequency",
+        col="springgreen")
+
+# plot(UPPM)
+```
